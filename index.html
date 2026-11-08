@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1319">
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RoboticBall">
+
+  <title>Robotic Ball II Controller</title>
+  <style>
+    :root {
+      --bg: #0f1319;
+      --card-bg: #181d26;
+      --card-border: #272f3d;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --text: #f3f4f6;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* Prevent page elastic bounce / scrolling */
+      position: fixed;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overscroll-behavior: none;
+    }
+
+    /* TOP BAR NAVIGATION */
+    header {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: max(0.6rem, env(safe-area-inset-top, 0px)) 0.85rem 0.6rem 0.85rem;
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(15, 19, 25, 0.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .brand-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: #11151c;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      gap: 3px;
+    }
+
+    .nav-tab {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      padding: 0.42rem 0.85rem;
+      border-radius: 7px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    .nav-tab:hover {
+      color: var(--text);
+    }
+
+    .nav-tab.active {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-icon {
+      background: #202734;
+      color: var(--text);
+      border: 1px solid var(--card-border);
+      padding: 0.45rem 0.6rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    .btn-icon:hover {
+      background: #2e384a;
+    }
+
+    .status-badge {
+      font-size: 0.78rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-badge.connected {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    /* MAIN VIEW CONTAINER */
+    main {
+      width: 100%;
+      max-width: 960px;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0.85rem 0.85rem calc(1.5rem + env(safe-area-inset-bottom, 0px)) 0.85rem;
+    }
+
+    /* In Drive tab, prevent any vertical scrolling completely on mobile */
+    body.tab-drive-active main {
+      overflow-y: hidden;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.2s ease-in-out;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* CARD STYLING */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.1rem;
+      margin-bottom: 0.85rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .row {
+      display: flex;
+      gap: 0.65rem;
+      align-items: center;
+    }
+
+    .space-between {
+      justify-content: space-between;
+    }
+
+    /* BUTTONS */
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.05s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      touch-action: manipulation;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+    }
+
+    button.secondary {
+      background: #2a3442;
+      color: var(--text);
+    }
+
+    button.secondary:hover:not(:disabled) {
+      background: #394657;
+    }
+
+    /* ==========================================================================
+       DRIVE MODE SPECIFIC STYLES
+       ========================================================================== */
+    .drive-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      height: 100%;
+    }
+
+    @media (max-width: 768px) {
+      .drive-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    /* JOYSTICK / TOUCHPAD (Responsive sizing with clamp) */
+    .touchpad-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .touchpad-surface {
+      width: clamp(210px, 62vw, 275px);
+      height: clamp(210px, 62vw, 275px);
+      border-radius: 50%;
+      background: radial-gradient(circle, #1a222d 0%, #10151d 100%);
+      border: 3px solid var(--card-border);
+      position: relative;
+      touch-action: none;
+      cursor: crosshair;
+      box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.6), 0 6px 16px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.25rem auto;
+    }
+
+    .touchpad-surface::before {
+      content: "FORWARD ▲";
+      position: absolute;
+      top: 10px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.3);
+      letter-spacing: 1px;
+    }
+
+    .touchpad-cross-h, .touchpad-cross-v {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.05);
+      pointer-events: none;
+    }
+
+    .touchpad-cross-h {
+      width: 100%;
+      height: 1px;
+    }
+
+    .touchpad-cross-v {
+      width: 1px;
+      height: 100%;
+    }
+
+    .touchpad-thumb {
+      width: clamp(58px, 17vw, 72px);
+      height: clamp(58px, 17vw, 72px);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #4f96ff, #2563eb);
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      position: absolute;
+      pointer-events: none;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
+      transform: translate(0px, 0px);
+      transition: transform 0.08s ease-out;
+    }
+
+    .touchpad-thumb.active {
+      transition: none;
+      background: radial-gradient(circle at 35% 35%, #60a5fa, #1d4ed8);
+    }
+
+    .telemetry-readout {
+      margin-top: 0.5rem;
+      display: flex;
+      gap: 1.25rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .telemetry-readout strong {
+      color: #38bdf8;
+    }
+
+    /* ROTARY DIAL / KNOBS */
+    .knobs-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .knob-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.35rem;
+      padding: 0.6rem 0.2rem;
+      background: #11151c;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .knob-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .rotary-knob-container {
+      position: relative;
+      width: clamp(56px, 16vw, 72px);
+      height: clamp(56px, 16vw, 72px);
+      touch-action: none;
+      cursor: ns-resize;
+    }
+
+    .rotary-knob-svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    .rotary-track {
+      fill: none;
+      stroke: #252d3a;
+      stroke-width: 6;
+    }
+
+    .rotary-progress {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 0.05s;
+    }
+
+    .rotary-cap {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      right: 7px;
+      bottom: 7px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #2e3847, #19202a);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .rotary-indicator {
+      width: 3px;
+      height: 12px;
+      background: #fff;
+      border-radius: 2px;
+      position: absolute;
+      top: 3px;
+      box-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+      transform-origin: center calc(50% + 6px);
+    }
+
+    .knob-val {
+      font-family: monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .knob-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--text-muted);
+    }
+
+    .color-preview-pill {
+      width: 100%;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.1s ease;
+    }
+
+    /* PRESETS QUICK BAR */
+    .quick-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+
+    .quick-bar button {
+      font-size: 0.78rem;
+      padding: 0.5rem 0.3rem;
+      min-width: 0;
+    }
+
+    /* ==========================================================================
+       DEV MODE SPECIFIC STYLES
+       ========================================================================== */
+    .dev-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 0.85rem;
+    }
+
+    .dpad-container {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(56px, 70px));
+      grid-template-rows: repeat(3, minmax(56px, 70px));
+      gap: 8px;
+      justify-content: center;
+      margin: 0.5rem auto;
+    }
+
+    .dpad-btn {
+      font-size: 1.25rem;
+      background: #1f2633;
+      border: 1px solid var(--card-border);
+      padding: 0;
+    }
+
+    .dpad-btn.stop {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .dpad-btn.stop:hover:not(:disabled) {
+      background: var(--danger);
+      color: white;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #10141b;
+      color: #38bdf8;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.65rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+      box-sizing: border-box;
+      user-select: text;
+    }
+
+    .log-box {
+      width: 100%;
+      height: 160px;
+      background: #0b0e13;
+      color: #a7f3d0;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      font-family: monospace;
+      font-size: 0.78rem;
+      overflow-y: auto;
+      user-select: text;
+    }
+
+    /* CONNECT VIEW STYLES */
+    .connect-panel {
+      max-width: 520px;
+      margin: 0.5rem auto;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+      padding: 1.75rem 1.15rem;
+    }
+
+    .ble-hero-icon {
+      font-size: 2.8rem;
+      color: var(--accent);
+    }
+
+    .info-list {
+      text-align: left;
+      background: #10141b;
+      padding: 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 480px) {
+      header {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+      }
+      .brand-title {
+        display: none; /* conserve space for tabs & buttons */
+      }
+      .nav-tab {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.82rem;
+      }
+      .card {
+        padding: 0.85rem;
+      }
+      .telemetry-readout {
+        gap: 0.85rem;
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body class="tab-drive-active">
+
+  <!-- TOP BAR -->
+  <header>
+    <div class="brand">
+      <div class="brand-title">Robotic Ball II</div>
+    </div>
+
+    <!-- TABS SWITCHER -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="tab-drive">Drive</button>
+      <button class="nav-tab" data-tab="tab-dev">Dev</button>
+      <button class="nav-tab" data-tab="tab-connect">Connect</button>
+    </nav>
+
+    <div class="top-actions">
+      <!-- FULLSCREEN TOGGLE BUTTON -->
+      <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen">
+        <span id="fsIcon">⛶</span>
+      </button>
+
+      <div id="statusBadge" class="status-badge">
+        <span id="statusDot">●</span>
+        <span id="statusText">Off</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="mainContainer">
+
+    <!-- ======================================================================
+         TAB 1: DRIVE MODE (Touchpad, Continuous motion, Knobs)
+         ====================================================================== -->
+    <section id="tab-drive" class="tab-content active">
+      <div class="drive-layout">
+
+        <!-- CONTINUOUS TOUCHPAD -->
+        <div class="card touchpad-box">
+          <div class="card-title" style="width: 100%;">
+            <span>Continuous Touchpad</span>
+            <button id="btnDriveEmergencyStop" class="danger" style="font-size: 0.75rem; padding: 0.35rem 0.75rem;">Brake ■</button>
+          </div>
+
+          <div id="touchpadSurface" class="touchpad-surface">
+            <div class="touchpad-cross-h"></div>
+            <div class="touchpad-cross-v"></div>
+            <div id="touchpadThumb" class="touchpad-thumb"></div>
+          </div>
+
+          <div class="telemetry-readout">
+            <div>Angle: <strong id="valAngle">0°</strong></div>
+            <div>Speed: <strong id="valSpeed">0%</strong></div>
+            <div>Heading: <strong id="valSide">Center</strong></div>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem; text-align: center;">
+            Drag to steer & roll (15 Hz) &bull; Release to brake immediately
+          </div>
+        </div>
+
+        <!-- LIGHTING KNOBS & MODES -->
+        <div class="card">
+          <div class="card-title">Color & Brightness Knobs</div>
+
+          <div class="knobs-container">
+            <!-- COLOR PREVIEW BAR -->
+            <div id="colorPreviewPill" class="color-preview-pill" style="background-color: rgb(0, 150, 255);"></div>
+
+            <!-- RGB ROTARY KNOBS -->
+            <div class="knob-row">
+              <div class="knob-item">
+                <div class="rotary-knob-container" id="knobRed">
+                  <svg class="rotary-knob-svg" viewBox="0 0 80 80">
+                    <circle class="rotary-track" cx="40" cy="40" r="34"></circle>
+                    <circle class="rotary-progress" cx="40" cy="40" r="34" style="stroke: #ef4444;"></circle>
+                  </svg>
+                  <div class="rotary-cap">
+                    <div class="rotary-indicator"></div>
+                  </div>
+                </div>
+                <span class="knob-val" id="valRed">0</span>
+                <span class="knob-label" style="color: #f87171;">Red</span>
+              </div>
+
+              <div class="knob-item">
+                <div class="rotary-knob-container" id="knobGreen">
+                  <svg class="rotary-knob-svg" viewBox="0 0 80 80">
+                    <circle class="rotary-track" cx="40" cy="40" r="34"></circle>
+                    <circle class="rotary-progress" cx="40" cy="40" r="34" style="stroke: #10b981;"></circle>
+                  </svg>
+                  <div class="rotary-cap">
+                    <div class="rotary-indicator"></div>
+                  </div>
+                </div>
+                <span class="knob-val" id="valGreen">150</span>
+                <span class="knob-label" style="color: #34d399;">Green</span>
+              </div>
+
+              <div class="knob-item">
+                <div class="rotary-knob-container" id="knobBlue">
+                  <svg class="rotary-knob-svg" viewBox="0 0 80 80">
+                    <circle class="rotary-track" cx="40" cy="40" r="34"></circle>
+                    <circle class="rotary-progress" cx="40" cy="40" r="34" style="stroke: #3b82f6;"></circle>
+                  </svg>
+                  <div class="rotary-cap">
+                    <div class="rotary-indicator"></div>
+                  </div>
+                </div>
+                <span class="knob-val" id="valBlue">255</span>
+                <span class="knob-label" style="color: #60a5fa;">Blue</span>
+              </div>
+
+              <div class="knob-item">
+                <div class="rotary-knob-container" id="knobBrightness">
+                  <svg class="rotary-knob-svg" viewBox="0 0 80 80">
+                    <circle class="rotary-track" cx="40" cy="40" r="34"></circle>
+                    <circle class="rotary-progress" cx="40" cy="40" r="34" style="stroke: #f59e0b;"></circle>
+                  </svg>
+                  <div class="rotary-cap">
+                    <div class="rotary-indicator"></div>
+                  </div>
+                </div>
+                <span class="knob-val" id="valBrightness">100%</span>
+                <span class="knob-label" style="color: #fbbf24;">Bright</span>
+              </div>
+            </div>
+
+            <!-- PRESET QUICK BUTTONS -->
+            <div class="card-title" style="margin-bottom: 0.1rem; font-size: 0.9rem;">Effects & Presets</div>
+            <div class="quick-bar">
+              <button class="secondary btnQuickMode" data-mode="1">Breathe</button>
+              <button class="secondary btnQuickMode" data-mode="2">Rainbow</button>
+              <button class="secondary btnQuickMode" data-mode="3">Dazzle</button>
+              <button class="secondary" id="btnQuickOff">Off</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 2: DEV MODE (Discrete D-pad, Scripting, Raw Logs, Telemetry)
+         ====================================================================== -->
+    <section id="tab-dev" class="tab-content">
+      <div class="dev-grid">
+
+        <!-- D-PAD STEPPER -->
+        <div class="card">
+          <div class="card-title">Discrete Stepper (D-Pad)</div>
+          <div class="row" style="margin-bottom: 0.4rem;">
+            <label style="width: 100px; font-size: 0.85rem;">Speed: <span id="lblSpeedDev">60</span>%</label>
+            <input type="range" id="sliderSpeedDev" min="10" max="100" value="60" style="flex:1;">
+          </div>
+          <div class="row" style="margin-bottom: 0.65rem;">
+            <label style="width: 100px; font-size: 0.85rem;">Duration: <span id="lblHoldDev">0.8</span>s</label>
+            <input type="range" id="sliderHoldDev" min="0.2" max="3.0" step="0.1" value="0.8" style="flex:1;">
+          </div>
+
+          <div class="dpad-container">
+            <button class="dpad-btn" id="btnFwdLeft" title="Forward-Left (Heading -45°)">↖</button>
+            <button class="dpad-btn" id="btnFwd" title="Forward (Heading 0°)">▲</button>
+            <button class="dpad-btn" id="btnFwdRight" title="Forward-Right (Heading +45°)">↗</button>
+            <button class="dpad-btn" id="btnAimLeft" title="Aim Left (Speed 0, 90°)">↺</button>
+            <button class="dpad-btn stop" id="btnDevStop" title="Immediate Stop">■</button>
+            <button class="dpad-btn" id="btnAimRight" title="Aim Right (Speed 0, 90°)">↻</button>
+            <button class="dpad-btn" id="btnBackLeft" title="Back-Left (Heading -135°)">↙</button>
+            <button class="dpad-btn" id="btnBack" title="Backward (Heading 180°)">▼</button>
+            <button class="dpad-btn" id="btnBackRight" title="Back-Right (Heading +135°)">↘</button>
+          </div>
+          <div class="row" style="margin-top: 0.5rem;">
+            <button id="btnDevReset" class="secondary" style="flex:1;">Re-center / Byte 7 Reset</button>
+          </div>
+        </div>
+
+        <!-- MACRO / SEQUENCE PROGRAMMER -->
+        <div class="card">
+          <div class="card-title">
+            <span>Sequence Programmer</span>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Macro Script</span>
+          </div>
+          <textarea id="txtSequence" spellcheck="false"># Example square routine
+speed 50
+led 0 255 0
+forward 1
+aim 90
+wait 0.4
+forward 1
+aim 90
+wait 0.4
+forward 1
+aim 90
+wait 0.4
+forward 1
+led 0 0 255
+stop</textarea>
+          <div class="row" style="margin-top: 0.65rem;">
+            <button id="btnRunSeq" style="flex: 1;">▶ Run</button>
+            <button id="btnStopSeq" class="danger" style="flex: 1;" disabled>⏹ Abort</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TRAFFIC & DIAGNOSTIC LOG -->
+      <div class="card">
+        <div class="card-title">
+          <span>Diagnostic Traffic Log</span>
+          <button class="secondary" id="btnClearLog" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">Clear</button>
+        </div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </section>
+
+    <!-- ======================================================================
+         TAB 3: CONNECT & HARDWARE INFO
+         ====================================================================== -->
+    <section id="tab-connect" class="tab-content">
+      <div class="card connect-panel">
+        <div class="ble-hero-icon">⬡</div>
+        <h2>Device Connection</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          Pair with your <strong>SW23</strong> Robotic Ball via Web Bluetooth.
+        </p>
+
+        <button id="btnConnectAction" style="font-size: 1rem; padding: 0.8rem 1.4rem;">
+          Connect to Ball
+        </button>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+          <button id="btnQueryStatus" class="secondary" disabled>Query Status</button>
+          <button id="btnQueryVer" class="secondary" disabled>Query Version</button>
+          <button id="btnSleep" class="danger" disabled>Power Down</button>
+        </div>
+
+        <div class="info-list">
+          <div class="row space-between">
+            <strong>Device Name:</strong> <span id="valDevName">Not Connected</span>
+          </div>
+          <div class="row space-between">
+            <strong>Battery Level:</strong> <span id="valBattery">-- %</span>
+          </div>
+          <div class="row space-between">
+            <strong>Hardware Version:</strong> <span id="valHwVer">--</span>
+          </div>
+          <div class="row space-between">
+            <strong>Firmware Version:</strong> <span id="valFwVer">--</span>
+          </div>
+          <div class="row space-between">
+            <strong>Service / Characteristic:</strong> <span style="font-family: monospace;">0xFFF0 / 0xFFF6</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // =========================================================================
+    // SERVICE WORKER REGISTRATION (PWA)
+    // =========================================================================
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('PWA ServiceWorker registered:', reg.scope))
+          .catch((err) => console.log('ServiceWorker registration failed:', err));
+      });
+    }
+
+    // =========================================================================
+    // FULLSCREEN HANDLER
+    // =========================================================================
+    const btnFullscreen = document.getElementById('btnFullscreen');
+    const fsIcon = document.getElementById('fsIcon');
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    function updateFsIcon() {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      fsIcon.textContent = isFs ? '✕' : '⛶';
+      btnFullscreen.title = isFs ? 'Exit Fullscreen' : 'Enter Fullscreen';
+    }
+
+    btnFullscreen.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', updateFsIcon);
+    document.addEventListener('webkitfullscreenchange', updateFsIcon);
+
+    // PROTOCOL CONSTANTS
+    const SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID = '0000fff6-0000-1000-8000-00805f9b34fb';
+    const HEADER = [0x41, 0x42]; // 'A', 'B'
+
+    let device = null;
+    let server = null;
+    let characteristic = null;
+
+    // STATE
+    let isRunningSequence = false;
+    let sequenceAbort = false;
+
+    // COLOR STATE
+    let colorState = {
+      r: 0,
+      g: 150,
+      b: 255,
+      brightness: 100 // 0..100%
+    };
+
+    // =========================================================================
+    // NAVIGATION TABS & SCROLL LOCK
+    // =========================================================================
+    const tabs = document.querySelectorAll('.nav-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+
+        tab.classList.add('active');
+        const targetId = tab.dataset.tab;
+        document.getElementById(targetId).classList.add('active');
+
+        // Lock main scrolling in Drive tab to give a solid native console feel
+        if (targetId === 'tab-drive') {
+          document.body.classList.add('tab-drive-active');
+        } else {
+          document.body.classList.remove('tab-drive-active');
+        }
+      });
+    });
+
+    // =========================================================================
+    // LOGGING
+    // =========================================================================
+    const logBox = document.getElementById('logBox');
+    function log(msg, type = 'info') {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+      const div = document.createElement('div');
+      div.textContent = `[${timeStr}] ${msg}`;
+      if (type === 'rx') div.style.color = '#34d399';
+      if (type === 'tx') div.style.color = '#60a5fa';
+      if (type === 'err') div.style.color = '#f87171';
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+    document.getElementById('btnClearLog').addEventListener('click', () => logBox.innerHTML = '');
+
+    // =========================================================================
+    // PROTOCOL FRAME BUILDER & TRANSMITTER
+    // =========================================================================
+    function buildFrame(cmd, params = []) {
+      const body = [cmd & 0xFF];
+      for (let i = 0; i < 6; i++) {
+        body.push((params[i] !== undefined ? params[i] : 0) & 0xFF);
+      }
+      const sum = body.reduce((acc, b) => (acc + b) & 0xFF, 0);
+      return new Uint8Array([...HEADER, ...body, sum]);
+    }
+
+    function hex(buf) {
+      return Array.from(new Uint8Array(buf.buffer || buf))
+        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+    }
+
+    async function sendFrame(cmd, params, label = '') {
+      if (!characteristic) return;
+      const data = buildFrame(cmd, params);
+      try {
+        log(`TX: ${hex(data)}  (${label})`, 'tx');
+        if (characteristic.writeValueWithoutResponse) {
+          await characteristic.writeValueWithoutResponse(data);
+        } else {
+          await characteristic.writeValue(data);
+        }
+      } catch (err) {
+        log(`Write error: ${err.message}`, 'err');
+      }
+    }
+
+    async function driveRaw(speed, side, angle, label = '') {
+      await sendFrame(0x01, [speed, side, angle, 0, 0, 0], label || `Drive spd=${speed} side=${side} angle=${angle}`);
+    }
+
+    async function stopBall() {
+      await sendFrame(0x01, [0, 0, 0, 0, 0, 1], 'STOP (Byte 8)');
+    }
+
+    async function resetBall() {
+      await sendFrame(0x01, [0, 0, 0, 0, 1, 0], 'RESET (Byte 7)');
+    }
+
+    async function sendRGB(r, g, b) {
+      await sendFrame(0x02, [0, r, g, b, 0, 0], `Set RGB (${r},${g},${b})`);
+    }
+
+    // =========================================================================
+    // CONTINUOUS TOUCHPAD DRIVER
+    // =========================================================================
+    const touchpadSurface = document.getElementById('touchpadSurface');
+    const touchpadThumb = document.getElementById('touchpadThumb');
+    const valAngle = document.getElementById('valAngle');
+    const valSpeed = document.getElementById('valSpeed');
+    const valSide = document.getElementById('valSide');
+
+    let isTouching = false;
+    let driveIntervalTimer = null;
+    let activeSpeed = 0;
+    let activeSide = 0;
+    let activeAngle = 0;
+
+    function startContinuousDrive() {
+      if (driveIntervalTimer) clearInterval(driveIntervalTimer);
+      driveIntervalTimer = setInterval(() => {
+        if (!isTouching) return;
+        driveRaw(activeSpeed, activeSide, activeAngle);
+      }, 66); // ~15 Hz
+    }
+
+    function stopContinuousDrive() {
+      if (driveIntervalTimer) {
+        clearInterval(driveIntervalTimer);
+        driveIntervalTimer = null;
+      }
+      activeSpeed = 0;
+      valAngle.textContent = '0°';
+      valSpeed.textContent = '0%';
+      valSide.textContent = 'Center';
+
+      touchpadThumb.classList.remove('active');
+      touchpadThumb.style.transform = `translate(0px, 0px)`;
+
+      stopBall().then(() => {
+        setTimeout(stopBall, 25);
+      });
+    }
+
+    function updateTouchPosition(clientX, clientY) {
+      const rect = touchpadSurface.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const maxRadius = (rect.width / 2) - 10;
+
+      let dx = clientX - centerX;
+      let dy = clientY - centerY;
+
+      const dist = Math.hypot(dx, dy);
+      const clampedDist = Math.min(dist, maxRadius);
+
+      if (dist > 0) {
+        dx = (dx / dist) * clampedDist;
+        dy = (dy / dist) * clampedDist;
+      }
+
+      touchpadThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+
+      // Speed 0..100
+      activeSpeed = Math.round((clampedDist / maxRadius) * 100);
+
+      // Angle: 0° is straight forward (dy < 0, dx = 0)
+      const rad = Math.atan2(dx, -dy);
+      let deg = Math.round((rad * 180) / Math.PI);
+
+      if (deg >= 0) {
+        activeSide = 0; // right
+        activeAngle = deg;
+        valSide.textContent = deg === 0 ? 'Straight' : 'Right';
+      } else {
+        activeSide = 1; // left
+        activeAngle = Math.abs(deg);
+        valSide.textContent = 'Left';
+      }
+
+      valAngle.textContent = `${activeAngle}°`;
+      valSpeed.textContent = `${activeSpeed}%`;
+    }
+
+    touchpadSurface.addEventListener('pointerdown', (e) => {
+      isTouching = true;
+      touchpadThumb.classList.add('active');
+      touchpadSurface.setPointerCapture(e.pointerId);
+      updateTouchPosition(e.clientX, e.clientY);
+      startContinuousDrive();
+    });
+
+    touchpadSurface.addEventListener('pointermove', (e) => {
+      if (!isTouching) return;
+      updateTouchPosition(e.clientX, e.clientY);
+    });
+
+    touchpadSurface.addEventListener('pointerup', () => {
+      if (!isTouching) return;
+      isTouching = false;
+      stopContinuousDrive();
+    });
+
+    touchpadSurface.addEventListener('pointercancel', () => {
+      if (!isTouching) return;
+      isTouching = false;
+      stopContinuousDrive();
+    });
+
+    document.getElementById('btnDriveEmergencyStop').addEventListener('click', stopBall);
+
+    // =========================================================================
+    // ROTARY KNOB CONTROLS (COLOR & BRIGHTNESS)
+    // =========================================================================
+    const colorPreviewPill = document.getElementById('colorPreviewPill');
+
+    function updateColorUI() {
+      const factor = colorState.brightness / 100;
+      const effR = Math.round(colorState.r * factor);
+      const effG = Math.round(colorState.g * factor);
+      const effB = Math.round(colorState.b * factor);
+
+      colorPreviewPill.style.backgroundColor = `rgb(${effR}, ${effG}, ${effB})`;
+      sendRGB(effR, effG, effB);
+    }
+
+    function setupRotaryKnob(containerId, initialVal, minVal, maxVal, onChange) {
+      const container = document.getElementById(containerId);
+      const progressCircle = container.querySelector('.rotary-progress');
+      const indicator = container.querySelector('.rotary-indicator');
+      const circumference = 2 * Math.PI * 34; // r=34
+
+      let currentVal = initialVal;
+      let startY = 0;
+      let startVal = initialVal;
+
+      function setVisual(val) {
+        const pct = (val - minVal) / (maxVal - minVal);
+        const offset = circumference * (1 - pct);
+        progressCircle.style.strokeDashoffset = offset;
+        const deg = -135 + pct * 270;
+        indicator.style.transform = `rotate(${deg}deg)`;
+      }
+
+      setVisual(currentVal);
+
+      container.addEventListener('pointerdown', (e) => {
+        startY = e.clientY;
+        startVal = currentVal;
+        container.setPointerCapture(e.pointerId);
+      });
+
+      container.addEventListener('pointermove', (e) => {
+        if (!container.hasPointerCapture(e.pointerId)) return;
+        const delta = (startY - e.clientY) * 1.5;
+        const range = maxVal - minVal;
+        let nextVal = Math.round(startVal + (delta / 120) * range);
+        nextVal = Math.max(minVal, Math.min(maxVal, nextVal));
+        if (nextVal !== currentVal) {
+          currentVal = nextVal;
+          setVisual(currentVal);
+          onChange(currentVal);
+        }
+      });
+    }
+
+    setupRotaryKnob('knobRed', colorState.r, 0, 255, (v) => {
+      colorState.r = v;
+      document.getElementById('valRed').textContent = v;
+      updateColorUI();
+    });
+
+    setupRotaryKnob('knobGreen', colorState.g, 0, 255, (v) => {
+      colorState.g = v;
+      document.getElementById('valGreen').textContent = v;
+      updateColorUI();
+    });
+
+    setupRotaryKnob('knobBlue', colorState.b, 0, 255, (v) => {
+      colorState.b = v;
+      document.getElementById('valBlue').textContent = v;
+      updateColorUI();
+    });
+
+    setupRotaryKnob('knobBrightness', colorState.brightness, 0, 100, (v) => {
+      colorState.brightness = v;
+      document.getElementById('valBrightness').textContent = `${v}%`;
+      updateColorUI();
+    });
+
+    document.querySelectorAll('.btnQuickMode').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const mode = parseInt(btn.dataset.mode, 10);
+        await sendFrame(0x02, [mode, 0, 0, 0, 0, 0], `Preset Mode ${mode}`);
+      });
+    });
+
+    document.getElementById('btnQuickOff').addEventListener('click', async () => {
+      await sendFrame(0x02, [0, 0, 0, 0, 0, 0], 'LEDs Off');
+    });
+
+    // =========================================================================
+    // DEV MODE: DISCRETE STEPPERS & SEQUENCE PROGRAMMER
+    // =========================================================================
+    const sliderSpeedDev = document.getElementById('sliderSpeedDev');
+    const lblSpeedDev = document.getElementById('lblSpeedDev');
+    const sliderHoldDev = document.getElementById('sliderHoldDev');
+    const lblHoldDev = document.getElementById('lblHoldDev');
+
+    sliderSpeedDev.addEventListener('input', () => lblSpeedDev.textContent = sliderSpeedDev.value);
+    sliderHoldDev.addEventListener('input', () => lblHoldDev.textContent = sliderHoldDev.value);
+
+    async function timedDrive(speed, heading, durationSec, label) {
+      const startTime = performance.now();
+      const endTime = startTime + (durationSec * 1000);
+      const side = heading >= 0 ? 0 : 1;
+      const angle = Math.abs(heading);
+
+      log(`Pulse: ${label} (${durationSec}s at ${speed}%)`);
+      while (performance.now() < endTime && !sequenceAbort) {
+        await driveRaw(speed, side, angle, label);
+        await new Promise(r => setTimeout(r, 66));
+      }
+      await stopBall();
+      await new Promise(r => setTimeout(r, 20));
+      await stopBall();
+    }
+
+    function bindDevDir(btnId, heading, label) {
+      document.getElementById(btnId).addEventListener('click', async () => {
+        const spd = parseInt(sliderSpeedDev.value, 10);
+        const dur = parseFloat(sliderHoldDev.value);
+        await timedDrive(spd, heading, dur, label);
+      });
+    }
+
+    bindDevDir('btnFwd', 0, 'Forward');
+    bindDevDir('btnFwdRight', 45, 'Forward-Right');
+    bindDevDir('btnAimRight', 90, 'Aim Right (90°)');
+    bindDevDir('btnBackRight', 135, 'Backward-Right');
+    bindDevDir('btnBack', 180, 'Backward');
+    bindDevDir('btnBackLeft', -135, 'Backward-Left');
+    bindDevDir('btnAimLeft', -90, 'Aim Left (-90°)');
+    bindDevDir('btnFwdLeft', -45, 'Forward-Left');
+
+    document.getElementById('btnDevStop').addEventListener('click', stopBall);
+    document.getElementById('btnDevReset').addEventListener('click', resetBall);
+
+    // Sequence execution
+    const btnRunSeq = document.getElementById('btnRunSeq');
+    const btnStopSeq = document.getElementById('btnStopSeq');
+
+    btnStopSeq.addEventListener('click', async () => {
+      sequenceAbort = true;
+      await stopBall();
+      log('Sequence aborted', 'err');
+    });
+
+    btnRunSeq.addEventListener('click', async () => {
+      if (isRunningSequence) return;
+      const lines = document.getElementById('txtSequence').value.split('\n');
+      isRunningSequence = true;
+      sequenceAbort = false;
+      btnRunSeq.disabled = true;
+      btnStopSeq.disabled = false;
+
+      let currentSpeed = parseInt(sliderSpeedDev.value, 10);
+
+      try {
+        log('Starting sequence execution...');
+        for (let i = 0; i < lines.length; i++) {
+          if (sequenceAbort) break;
+          const raw = lines[i].trim();
+          if (!raw || raw.startsWith('#')) continue;
+
+          log(`Seq line ${i+1}: "${raw}"`);
+          const parts = raw.split(/\s+/);
+          const cmd = parts[0].toLowerCase();
+
+          if (cmd === 'speed') {
+            currentSpeed = parseInt(parts[1], 10);
+          } else if (cmd === 'forward') {
+            const dur = parseFloat(parts[1] || '1');
+            await timedDrive(currentSpeed, 0, dur, 'Seq Forward');
+          } else if (cmd === 'back') {
+            const dur = parseFloat(parts[1] || '1');
+            await timedDrive(currentSpeed, 180, dur, 'Seq Back');
+          } else if (cmd === 'left') {
+            const dur = parseFloat(parts[1] || '1');
+            await timedDrive(currentSpeed, -90, dur, 'Seq Left');
+          } else if (cmd === 'right') {
+            const dur = parseFloat(parts[1] || '1');
+            await timedDrive(currentSpeed, 90, dur, 'Seq Right');
+          } else if (cmd === 'aim') {
+            const heading = parseInt(parts[1] || '0', 10);
+            const side = heading >= 0 ? 0 : 1;
+            await driveRaw(0, side, Math.abs(heading), `Seq Aim ${heading}°`);
+          } else if (cmd === 'stop') {
+            await stopBall();
+          } else if (cmd === 'wait') {
+            const sec = parseFloat(parts[1] || '1');
+            await new Promise(r => setTimeout(r, sec * 1000));
+          } else if (cmd === 'led') {
+            const r = parseInt(parts[1], 10), g = parseInt(parts[2], 10), b = parseInt(parts[3], 10);
+            await sendFrame(0x02, [0, r, g, b, 0, 0], `Seq LED (${r},${g},${b})`);
+          } else if (cmd === 'mode') {
+            const map = { breathe: 1, rainbow: 2, dazzle: 3 };
+            const m = map[parts[1].toLowerCase()] || parseInt(parts[1], 10);
+            await sendFrame(0x02, [m, 0, 0, 0, 0, 0], `Seq Mode ${m}`);
+          }
+          await new Promise(r => setTimeout(r, 60));
+        }
+        await stopBall();
+        log('Sequence completed.');
+      } catch (err) {
+        log(`Sequence error: ${err.message}`, 'err');
+      } finally {
+        isRunningSequence = false;
+        btnRunSeq.disabled = false;
+        btnStopSeq.disabled = true;
+      }
+    });
+
+    // =========================================================================
+    // CONNECT VIEW & WEB BLUETOOTH
+    // =========================================================================
+    const btnConnectAction = document.getElementById('btnConnectAction');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const valDevName = document.getElementById('valDevName');
+    const valBattery = document.getElementById('valBattery');
+    const valHwVer = document.getElementById('valHwVer');
+    const valFwVer = document.getElementById('valFwVer');
+    const connectButtons = [
+      document.getElementById('btnQueryStatus'),
+      document.getElementById('btnQueryVer'),
+      document.getElementById('btnSleep')
+    ];
+
+    function setConnectedUI(connected) {
+      if (connected) {
+        statusBadge.classList.add('connected');
+        statusText.textContent = (device && device.name) ? device.name : 'Connected';
+        btnConnectAction.textContent = 'Disconnect';
+        btnConnectAction.classList.add('danger');
+        valDevName.textContent = device.name || 'SW23 Ball';
+        connectButtons.forEach(b => b.disabled = false);
+      } else {
+        statusBadge.classList.remove('connected');
+        statusText.textContent = 'Off';
+        btnConnectAction.textContent = 'Connect to Ball';
+        btnConnectAction.classList.remove('danger');
+        valDevName.textContent = 'Not Connected';
+        valBattery.textContent = '-- %';
+        valHwVer.textContent = '--';
+        valFwVer.textContent = '--';
+        connectButtons.forEach(b => b.disabled = true);
+      }
+    }
+
+    async function connectBLE() {
+      if (!navigator.bluetooth) {
+        alert('Web Bluetooth is not supported or enabled in this browser.\nUse Chrome/Edge on Android/PC at http://localhost:8000 or https://.');
+        return;
+      }
+
+      if (device && device.gatt && device.gatt.connected) {
+        log('Disconnecting...');
+        device.gatt.disconnect();
+        return;
+      }
+
+      try {
+        log('Opening Bluetooth device picker...');
+        device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [SERVICE_UUID]
+        });
+
+        device.addEventListener('gattserverdisconnected', () => {
+          log('Device disconnected', 'err');
+          setConnectedUI(false);
+        });
+
+        log(`Connecting to ${device.name}...`);
+        server = await device.gatt.connect();
+
+        log('Getting primary service (0xFFF0)...');
+        const service = await server.getPrimaryService(SERVICE_UUID);
+
+        log('Getting characteristic (0xFFF6)...');
+        characteristic = await service.getCharacteristic(CHAR_UUID);
+
+        log('Starting notifications...');
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', onNotification);
+
+        setConnectedUI(true);
+        log('Connected and ready!');
+
+        setTimeout(async () => {
+          await queryStatus();
+        }, 500);
+
+      } catch (err) {
+        log(`Connection failed: ${err.message}`, 'err');
+        setConnectedUI(false);
+      }
+    }
+
+    function onNotification(event) {
+      const val = new Uint8Array(event.target.value.buffer);
+      log(`RX: ${hex(val)}`, 'rx');
+
+      if (val.length === 10 && val[0] === 0x41 && val[1] === 0x42) {
+        const cmd = val[2];
+        if (cmd === 0x01) {
+          const batt = val[4];
+          valBattery.textContent = `${batt}%`;
+          log(`Status: Battery=${batt}%`);
+        } else if (cmd === 0x02) {
+          const hw = `${val[3]}.${val[4]}.${val[5]}`;
+          const sw = `${val[6]}.${val[7]}.${val[8]}`;
+          valHwVer.textContent = hw;
+          valFwVer.textContent = sw;
+          log(`Version: Hardware=${hw}, Firmware=${sw}`);
+        }
+      }
+    }
+
+    async function queryStatus() {
+      await sendFrame(0x03, [1], 'Query Status');
+    }
+
+    async function queryVersion() {
+      await sendFrame(0x03, [2], 'Query Version');
+    }
+
+    btnConnectAction.addEventListener('click', connectBLE);
+    document.getElementById('btnQueryStatus').addEventListener('click', queryStatus);
+    document.getElementById('btnQueryVer').addEventListener('click', queryVersion);
+    document.getElementById('btnSleep').addEventListener('click', async () => {
+      if (confirm('Put the ball into sleep mode? You will need to press its physical button or place on dock to wake.')) {
+        await sendFrame(0x04, [0, 1], 'Sleep / Dormancy');
+        await new Promise(r => setTimeout(r, 40));
+        await sendFrame(0x04, [0, 1], 'Sleep repeat');
+      }
+    });
+
+  </script>
+</body>
+</html>
