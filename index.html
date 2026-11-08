@@ -117,7 +117,45 @@
     .top-actions {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
+    }
+
+    .battery-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: #18212e;
+      border: 1px solid var(--card-border);
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-family: monospace;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+
+    .battery-pill.good {
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .battery-pill.mid {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .battery-pill.low {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.15);
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .btn-icon {
@@ -612,6 +650,12 @@
     </nav>
 
     <div class="top-actions">
+      <!-- BATTERY MONITOR IN TOP BAR (VISIBLE IN ALL VIEWS) -->
+      <div id="topBatteryPill" class="battery-pill" title="Robot Battery Level">
+        <span id="topBatteryIcon">🔋</span>
+        <span id="topBatteryText">--%</span>
+      </div>
+
       <!-- FULLSCREEN TOGGLE BUTTON -->
       <button id="btnFullscreen" class="btn-icon" title="Toggle Fullscreen">
         <span id="fsIcon">⛶</span>
@@ -1335,6 +1379,9 @@ stop</textarea>
     const btnConnectAction = document.getElementById('btnConnectAction');
     const statusBadge = document.getElementById('statusBadge');
     const statusText = document.getElementById('statusText');
+    const topBatteryPill = document.getElementById('topBatteryPill');
+    const topBatteryIcon = document.getElementById('topBatteryIcon');
+    const topBatteryText = document.getElementById('topBatteryText');
     const valDevName = document.getElementById('valDevName');
     const valBattery = document.getElementById('valBattery');
     const valHwVer = document.getElementById('valHwVer');
@@ -1345,6 +1392,48 @@ stop</textarea>
       document.getElementById('btnSleep')
     ];
 
+    let batteryPollTimer = null;
+
+    function updateBatteryUI(percent) {
+      valBattery.textContent = `${percent}%`;
+      topBatteryText.textContent = `${percent}%`;
+
+      topBatteryPill.classList.remove('good', 'mid', 'low');
+      if (percent >= 60) {
+        topBatteryPill.classList.add('good');
+        topBatteryIcon.textContent = '🔋';
+      } else if (percent >= 30) {
+        topBatteryPill.classList.add('mid');
+        topBatteryIcon.textContent = '🪫';
+      } else {
+        topBatteryPill.classList.add('low');
+        topBatteryIcon.textContent = '⚠️';
+      }
+    }
+
+    function startBatteryPolling() {
+      stopBatteryPolling();
+      // Poll battery every 8 seconds when not actively driving
+      batteryPollTimer = setInterval(async () => {
+        if (!device || !device.gatt || !device.gatt.connected) {
+          stopBatteryPolling();
+          return;
+        }
+        // Don't interrupt if user is actively touching the steering pad or running a macro
+        if (isTouching || isRunningSequence) {
+          return;
+        }
+        await queryStatus();
+      }, 8000);
+    }
+
+    function stopBatteryPolling() {
+      if (batteryPollTimer) {
+        clearInterval(batteryPollTimer);
+        batteryPollTimer = null;
+      }
+    }
+
     function setConnectedUI(connected) {
       if (connected) {
         statusBadge.classList.add('connected');
@@ -1353,6 +1442,7 @@ stop</textarea>
         btnConnectAction.classList.add('danger');
         valDevName.textContent = device.name || 'SW23 Ball';
         connectButtons.forEach(b => b.disabled = false);
+        startBatteryPolling();
       } else {
         statusBadge.classList.remove('connected');
         statusText.textContent = 'Off';
@@ -1362,7 +1452,11 @@ stop</textarea>
         valBattery.textContent = '-- %';
         valHwVer.textContent = '--';
         valFwVer.textContent = '--';
+        topBatteryText.textContent = '--%';
+        topBatteryIcon.textContent = '🔋';
+        topBatteryPill.classList.remove('good', 'mid', 'low');
         connectButtons.forEach(b => b.disabled = true);
+        stopBatteryPolling();
       }
     }
 
@@ -1424,7 +1518,7 @@ stop</textarea>
         const cmd = val[2];
         if (cmd === 0x01) {
           const batt = val[4];
-          valBattery.textContent = `${batt}%`;
+          updateBatteryUI(batt);
           log(`Status: Battery=${batt}%`);
         } else if (cmd === 0x02) {
           const hw = `${val[3]}.${val[4]}.${val[5]}`;
